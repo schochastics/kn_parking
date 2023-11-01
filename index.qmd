@@ -1,0 +1,171 @@
+--- 
+title: "Konstanz Parkhäuser"
+logo: assets/Wappen_Konstanz.png
+format: dashboard
+
+theme: 
+  - cosmo
+  - assets/custom.scss
+--- 
+
+
+```{r}
+#| label: setup
+#| echo: false
+#| message: false
+#| warning: false
+library(tidyverse)
+
+lot_box <- function(x) {
+    value <- paste0(
+        current_tbl$real_capa[x] - current_tbl$real_fcap[x], "/",
+        current_tbl$real_capa[x]
+    )
+    list(
+        icon = "car-front-fill",
+        color = ifelse(current_tbl$frac[x] <= 0.75, "success", ifelse(current_tbl$frac[x] <= 0.9, "warning", "danger")),
+        value = value
+    )
+}
+
+tbl <- read_csv("parking.csv", show_col_types = FALSE)
+tbl <- tbl |>
+    select(1, 3, 4, 6, 7, 12, 13, 14, 15, 24, 25, 28) |>
+    mutate(frac = 1 - attributes.real_fcap / attributes.real_capa) |>
+    filter(attributes.OBJECTID < 10)
+names(tbl) <- str_to_lower(str_remove(names(tbl), "attributes\\."))
+current_time <- max(tbl$time)
+last_time <- max(tbl$time[tbl$time != current_time])
+current_tbl <- tbl |> dplyr::filter(time == current_time)
+```
+
+# Main
+
+Belegte Parkplätze
+
+## Row {height = 5%}
+
+```{r}
+#| component: valuebox
+#| title: !expr current_tbl$name[1]
+#| label: parkhaus_01
+lot_box(1)
+```
+
+```{r}
+#| component: valuebox
+#| title: !expr current_tbl$name[2]
+#| label: parkhaus_02
+lot_box(2)
+```
+
+```{r}
+#| component: valuebox
+#| title: !expr current_tbl$name[3]
+#| label: parkhaus_03
+lot_box(3)
+```
+
+```{r}
+#| component: valuebox
+#| title: !expr current_tbl$name[4]
+#| label: parkhaus_04
+lot_box(4)
+```
+
+```{r}
+#| component: valuebox
+#| title: !expr current_tbl$name[5]
+#| label: parkhaus_05
+lot_box(5)
+```
+
+## Row {height = 5%}
+
+```{r}
+#| component: valuebox
+#| title: !expr current_tbl$name[6]
+#| label: parkhaus_06
+lot_box(6)
+```
+
+```{r}
+#| component: valuebox
+#| title: !expr current_tbl$name[7]
+#| label: parkhaus_07
+lot_box(7)
+```
+
+```{r}
+#| component: valuebox
+#| title: !expr current_tbl$name[8]
+#| label: parkhaus_08
+lot_box(8)
+```
+
+```{r}
+#| component: valuebox
+#| title: !expr current_tbl$name[9]
+#| label: parkhaus_09
+lot_box(9)
+```
+
+## Row {height = 90%}
+
+```{r}
+#| label: map
+library(leaflet)
+p_icons <- icons(
+    iconUrl = ifelse(current_tbl$frac <= 0.75, "assets/p_green.png", ifelse(current_tbl$frac <= 0.9, "assets/p_orange.png", "assets/p_red.png"))
+)
+values <- paste0(current_tbl$real_capa - current_tbl$real_fcap, "/", current_tbl$real_capa, " belegt")
+pop <- paste(
+    sep = "<br>",
+    "<b>", current_tbl$name, "</b>",
+    values
+)
+
+leaflet() %>%
+    setView(mean(current_tbl$lon), mean(current_tbl$lat), 14) %>%
+    addTiles() %>% # Add default OpenStreetMap map tiles
+    addMarkers(
+        lng = current_tbl$lon, lat = current_tbl$lat, popup = pop, icon = p_icons,
+    )
+```
+
+# History
+
+
+```{r}
+#| layout-ncol: 3
+plt <- function(dat) {
+    plotly::plot_ly(dat,
+        x = ~time,
+        y = ~ frac * 100,
+        type = "scatter",
+        mode = "line"
+    ) |>
+        plotly::layout(
+            title = ~ name[1],
+            xaxis = list(title = "Datum"),
+            yaxis = list(
+                title = "Auslastung in Prozent",
+                range = c(0, 100)
+            )
+        ) |>
+        plotly::config(displayModeBar = F)
+}
+
+plist <- tbl |>
+    group_split(objectid) |>
+    map(plt)
+plist[[1]]
+plist[[2]]
+plist[[3]]
+plist[[4]]
+plist[[5]]
+plist[[6]]
+plist[[7]]
+plist[[8]]
+plist[[9]]
+```
